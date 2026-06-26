@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Tool
+metadata:
+  name: skill_candidate_risk_check
+  label:
+    en_US: Check Skill Candidate Risk
+    zh_Hans: 检查 Skill 候选风险
+  description:
+    en_US: Run deterministic risk checks against a Skill candidate.
+    zh_Hans: 对 Skill 候选执行确定性风险检查。
+spec:
+  parameters:
+    type: object
+    properties:
+      candidate_id:
+        type: string
+        description: Candidate ID.
+    required:
+      - candidate_id
+  llm_prompt: Run risk checks against a reviewable LangBot Skill candidate.
+execution:
+  python:
+    path: skill_candidate_risk_check.py
+    attr: SkillCandidateRiskCheckTool
+

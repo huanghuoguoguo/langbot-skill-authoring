@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Tool
+metadata:
+  name: skill_candidate_create
+  label:
+    en_US: Create Skill Candidate
+    zh_Hans: 创建 Skill 候选
+  description:
+    en_US: Create a reviewable LangBot Skill candidate from evidence or notes.
+    zh_Hans: 从证据或备注创建可审核的 LangBot Skill 候选。
+spec:
+  parameters:
+    type: object
+    properties:
+      title:
+        type: string
+        description: Candidate title.
+      source_text:
+        type: string
+        description: Evidence, run notes, troubleshooting steps, or QA result text.
+      source_type:
+        type: string
+        description: Source type such as run, qa, troubleshooting, or note.
+      source_id:
+        type: string
+        description: Source identifier.
+      name:
+        type: string
+        description: Optional target skill name.
+    required:
+      - source_text
+  llm_prompt: Create a reviewable LangBot Skill candidate from verified evidence.
+execution:
+  python:
+    path: skill_candidate_create.py
+    attr: SkillCandidateCreateTool
+

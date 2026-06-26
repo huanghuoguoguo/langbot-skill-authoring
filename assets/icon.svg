@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Skill Authoring icon">
+  <rect width="64" height="64" rx="10" fill="#10151f"/>
+  <path d="M17 16h30v7H17z" fill="#f2c14e"/>
+  <path d="M17 28h21v5H17z" fill="#67c5b8"/>
+  <path d="M17 39h30v5H17z" fill="#f28f3b"/>
+  <path d="M42 28l6 6-12 12h-6v-6z" fill="#f4f1de"/>
+</svg>
+

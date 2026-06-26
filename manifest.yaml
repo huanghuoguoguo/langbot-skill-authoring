@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Plugin
+metadata:
+  author: huanghuoguoguo
+  name: skill-authoring
+  repository: https://github.com/huanghuoguoguo/langbot-skill-authoring
+  version: 0.1.0
+  description:
+    en_US: Reviewable Skill authoring and mining workflow for LangBot.
+    zh_Hans: 面向 LangBot 的可审核 Skill 沉淀与生成工作流。
+  label:
+    en_US: Skill Authoring
+    zh_Hans: Skill 沉淀
+  icon: assets/icon.svg
+spec:
+  config:
+    - name: default_reviewer
+      type: string
+      label:
+        en_US: Default reviewer
+        zh_Hans: 默认审核人
+      description:
+        en_US: Reviewer label recorded when Page actions omit a reviewer.
+        zh_Hans: 页面操作未传入审核人时记录的默认审核人。
+      required: false
+    - name: max_source_chars
+      type: int
+      label:
+        en_US: Max source chars
+        zh_Hans: 来源最大字符数
+      description:
+        en_US: Maximum source text length kept in a generated candidate.
+        zh_Hans: 候选生成时保留的来源文本最大长度。
+      required: false
+      default: 12000
+  components:
+    Tool:
+      fromDirs:
+        - path: components/tools/
+          maxDepth: 1
+    Page:
+      fromDirs:
+        - path: components/pages/
+          maxDepth: 2
+execution:
+  python:
+    path: main.py
+    attr: SkillAuthoringPlugin
+

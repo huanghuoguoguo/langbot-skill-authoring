@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skill Authoring</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18212f;
+      --muted: #627084;
+      --line: #d8ded7;
+      --paper: #faf8f2;
+      --panel: #ffffff;
+      --accent: #d84f32;
+      --accent-2: #177e75;
+      --gold: #d5a11e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        linear-gradient(90deg, rgba(24,33,47,0.04) 1px, transparent 1px),
+        linear-gradient(rgba(24,33,47,0.04) 1px, transparent 1px),
+        var(--paper);
+      background-size: 32px 32px;
+      color: var(--ink);
+      font-family: ui-serif, Georgia, "Times New Roman", serif;
+      letter-spacing: 0;
+    }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+    header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: end;
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 18px;
+      margin-bottom: 22px;
+    }
+    h1 {
+      font-size: 34px;
+      line-height: 1;
+      margin: 0;
+      font-weight: 800;
+    }
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+    button {
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: white;
+      min-height: 36px;
+      padding: 0 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: var(--panel);
+      color: var(--ink);
+    }
+    button.warn {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 370px) 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 24px rgba(24,33,47,0.08);
+    }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      padding: 12px 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .panel-body { padding: 14px; }
+    label {
+      display: block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: var(--muted);
+      margin: 12px 0 6px;
+    }
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      padding: 10px;
+      font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    textarea {
+      min-height: 180px;
+      resize: vertical;
+    }
+    .candidate {
+      border: 1px solid var(--line);
+      padding: 10px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      background: #fff;
+    }
+    .candidate.active { border-color: var(--accent-2); box-shadow: inset 4px 0 0 var(--accent-2); }
+    .candidate strong { display: block; font-size: 15px; }
+    .meta {
+      color: var(--muted);
+      font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      margin-top: 5px;
+    }
+    .status {
+      display: inline-block;
+      padding: 2px 7px;
+      border: 1px solid var(--line);
+      background: #fbf6e8;
+      margin-right: 6px;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #111827;
+      color: #f8fafc;
+      padding: 14px;
+      max-height: 440px;
+      overflow: auto;
+      font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .risk-warn { color: var(--accent); }
+    .risk-pass { color: var(--accent-2); }
+    @media (max-width: 820px) {
+      main { padding: 16px; }
+      header, .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Skill Authoring</h1>
+        <p class="subtitle">Candidate generation, review, risk scan, and SKILL.md package export.</p>
+      </div>
+      <button class="secondary" id="refresh">Refresh</button>
+    </header>
+
+    <div class="grid">
+      <section>
+        <div class="panel-head"><span>Create Candidate</span></div>
+        <div class="panel-body">
+          <label for="title">Title</label>
+          <input id="title" placeholder="Plugin runtime debug runbook">
+          <label for="sourceType">Source type</label>
+          <input id="sourceType" value="note">
+          <label for="sourceId">Source id</label>
+          <input id="sourceId" placeholder="run_123 / qa-case-id / note">
+          <label for="sourceText">Evidence or notes</label>
+          <textarea id="sourceText" placeholder="Paste verified steps, failure symptoms, tool path, and validation evidence."></textarea>
+          <div class="actions">
+            <button id="create">Create</button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="panel-head"><span>Candidates</span><span id="count">0</span></div>
+        <div class="panel-body" id="candidates"></div>
+      </section>
+    </div>
+
+    <section style="margin-top: 18px;">
+      <div class="panel-head"><span>Selected Candidate</span><span id="selectedStatus">None</span></div>
+      <div class="panel-body">
+        <div id="detail" class="meta">Select or create a candidate.</div>
+        <div class="actions">
+          <button class="secondary" id="risk">Risk Scan</button>
+          <button class="secondary" id="approve">Approve</button>
+          <button class="warn" id="reject">Reject</button>
+          <button id="export">Export Package</button>
+        </div>
+        <pre id="output" hidden></pre>
+      </div>
+    </section>
+  </main>
+  <script src="/api/v1/plugins/_sdk/page-sdk.js"></script>
+  <script>
+    let selected = null;
+    let candidates = [];
+
+    function api(endpoint, method = "GET", body = null) {
+      return langbot.api(endpoint, body, method);
+    }
+
+    function renderList() {
+      const root = document.getElementById("candidates");
+      document.getElementById("count").textContent = String(candidates.length);
+      root.innerHTML = "";
+      candidates.forEach((item) => {
+        const node = document.createElement("div");
+        node.className = "candidate" + (selected && selected.id === item.id ? " active" : "");
+        node.innerHTML = `<strong>${item.title || item.draft.display_name}</strong>
+          <div class="meta"><span class="status">${item.status}</span>${item.id}</div>
+          <div class="meta ${item.risk_report.status === "pass" ? "risk-pass" : "risk-warn"}">risk: ${item.risk_report.status}</div>`;
+        node.onclick = () => selectCandidate(item.id);
+        root.appendChild(node);
+      });
+    }
+
+    function renderDetail() {
+      const detail = document.getElementById("detail");
+      const status = document.getElementById("selectedStatus");
+      if (!selected) {
+        detail.textContent = "Select or create a candidate.";
+        status.textContent = "None";
+        return;
+      }
+      status.textContent = selected.status;
+      detail.innerHTML = `
+        <strong>${selected.draft.display_name}</strong>
+        <div class="meta">${selected.draft.name} · ${selected.draft.description}</div>
+        <p><b>When to use:</b> ${selected.draft.when_to_use}</p>
+        <p><b>When not to use:</b> ${selected.draft.when_not_to_use}</p>
+        <p><b>Risk:</b> ${selected.risk_report.status}</p>
+      `;
+    }
+
+    async function load() {
+      const data = await api("/candidates");
+      candidates = data.candidates || [];
+      if (selected) selected = candidates.find((item) => item.id === selected.id) || null;
+      renderList();
+      renderDetail();
+    }
+
+    async function selectCandidate(id) {
+      const data = await api(`/candidates/${id}`);
+      selected = data.candidate;
+      renderList();
+      renderDetail();
+    }
+
+    function show(value) {
+      const out = document.getElementById("output");
+      out.hidden = false;
+      out.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    }
+
+    langbot.onReady(() => {
+      document.getElementById("refresh").onclick = load;
+      document.getElementById("create").onclick = async () => {
+        const data = await api("/candidates", "POST", {
+          title: document.getElementById("title").value,
+          source_type: document.getElementById("sourceType").value,
+          source_ref: {
+            type: document.getElementById("sourceType").value,
+            id: document.getElementById("sourceId").value,
+          },
+          source_text: document.getElementById("sourceText").value,
+          created_by: "page",
+        });
+        selected = data.candidate;
+        await load();
+      };
+      document.getElementById("risk").onclick = async () => selected && show(await api(`/candidates/${selected.id}/risk`, "POST", {}));
+      document.getElementById("approve").onclick = async () => {
+        if (!selected) return;
+        const data = await api(`/candidates/${selected.id}/review`, "POST", { decision: "approve", reviewer: "page" });
+        selected = data.candidate;
+        await load();
+      };
+      document.getElementById("reject").onclick = async () => {
+        if (!selected) return;
+        const data = await api(`/candidates/${selected.id}/review`, "POST", { decision: "reject", reviewer: "page" });
+        selected = data.candidate;
+        await load();
+      };
+      document.getElementById("export").onclick = async () => selected && show(await api(`/candidates/${selected.id}/export`, "POST", {}));
+      load().catch((err) => show(err.message));
+    });
+  </script>
+</body>
+</html>

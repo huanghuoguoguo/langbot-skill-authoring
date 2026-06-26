@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Page
+metadata:
+  name: authoring
+  label:
+    en_US: Skill Authoring
+    zh_Hans: Skill 沉淀
+  description:
+    en_US: Review, validate, and export learned LangBot skill candidates.
+    zh_Hans: 审核、验证并导出沉淀出的 LangBot Skill 候选。
+spec:
+  path: index.html
+execution:
+  python:
+    path: authoring.py
+    attr: SkillAuthoringPage
+

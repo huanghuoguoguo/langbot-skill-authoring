@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Tool
+metadata:
+  name: skill_candidate_export
+  label:
+    en_US: Export Skill Candidate
+    zh_Hans: 导出 Skill 候选
+  description:
+    en_US: Export a candidate as a SKILL.md package payload.
+    zh_Hans: 将候选导出为 SKILL.md 包内容。
+spec:
+  parameters:
+    type: object
+    properties:
+      candidate_id:
+        type: string
+        description: Candidate ID.
+    required:
+      - candidate_id
+  llm_prompt: Export a reviewed LangBot Skill candidate into a SKILL.md package.
+execution:
+  python:
+    path: skill_candidate_export.py
+    attr: SkillCandidateExportTool
+
