@@ -19,7 +19,12 @@ class SkillAuthoringPage(Page):
     def _service(self) -> SkillAuthoringService:
         config = self.plugin.get_config() if self.plugin else {}
         max_source_chars = int(config.get("max_source_chars") or 12000)
-        return SkillAuthoringService(self.plugin.candidate_store, max_source_chars=max_source_chars)
+        return SkillAuthoringService(
+            self.plugin.candidate_store,
+            max_source_chars=max_source_chars,
+            retention_deprecate_score=int(config.get("retention_deprecate_score") or 70),
+            retention_archive_score=int(config.get("retention_archive_score") or 35),
+        )
 
     def _auto_settings(self) -> dict[str, Any]:
         config = self.plugin.get_config() if self.plugin else {}
@@ -58,6 +63,8 @@ class SkillAuthoringPage(Page):
                 policy=settings["policy"],
                 reviewer=settings["reviewer"],
             )
+        if endpoint == "/retention" and method == "GET":
+            return await service.evaluate_retention()
 
         parts = [part for part in endpoint.split("/") if part]
         if len(parts) >= 2 and parts[0] == "candidates":
@@ -81,5 +88,13 @@ class SkillAuthoringPage(Page):
                 }
             if len(parts) == 3 and parts[2] == "export" and method == "POST":
                 return await service.export(candidate_id)
+            if len(parts) == 3 and parts[2] == "lifecycle-events" and method == "POST":
+                return {"candidate": await service.record_lifecycle_event(candidate_id, body)}
+            if len(parts) == 3 and parts[2] == "lifecycle" and method == "GET":
+                return {"lifecycle_report": await service.evaluate_lifecycle(candidate_id)}
+            if len(parts) == 3 and parts[2] == "lifecycle" and method == "POST":
+                return {"candidate": await service.apply_lifecycle_action(candidate_id, body)}
+            if len(parts) == 3 and parts[2] == "memory-plan" and method == "GET":
+                return await service.memory_coordination_plan(candidate_id)
 
         raise ValueError(f"unsupported endpoint: {method} {endpoint}")

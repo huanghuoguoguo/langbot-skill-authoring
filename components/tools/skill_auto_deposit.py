@@ -6,7 +6,7 @@ from typing import Any
 from langbot_plugin.api.definition.components.tool.tool import Tool
 from langbot_plugin.api.entities.builtin.provider import session as provider_session
 
-from skill_authoring.service import SkillAuthoringService
+from skill_authoring.factory import build_service
 
 
 def _config_bool(value: Any) -> bool:
@@ -29,7 +29,7 @@ class SkillAutoDepositTool(Tool):
         policy = str(config.get("auto_deposition_policy") or "allow_warn")
         reviewer = str(config.get("auto_deposition_reviewer") or "auto-deposition")
 
-        service = SkillAuthoringService(self.plugin.candidate_store)
+        service = build_service(self.plugin)
         source_type = str(params.get("source_type") or "note")
         result = await service.auto_deposit(
             {

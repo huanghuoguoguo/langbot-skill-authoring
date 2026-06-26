@@ -6,7 +6,7 @@ from typing import Any
 from langbot_plugin.api.definition.components.tool.tool import Tool
 from langbot_plugin.api.entities.builtin.provider import session as provider_session
 
-from skill_authoring.service import SkillAuthoringService
+from skill_authoring.factory import build_service
 
 
 class SkillCandidateRiskCheckTool(Tool):
@@ -16,7 +16,6 @@ class SkillCandidateRiskCheckTool(Tool):
         session: provider_session.Session,
         query_id: int,
     ) -> str:
-        service = SkillAuthoringService(self.plugin.candidate_store)
+        service = build_service(self.plugin)
         report = await service.risk_check(str(params.get("candidate_id") or ""))
         return json.dumps(report, ensure_ascii=False)
-

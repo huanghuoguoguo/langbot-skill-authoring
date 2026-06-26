@@ -4,7 +4,7 @@ metadata:
   author: huanghuoguoguo
   name: skill-authoring
   repository: https://github.com/huanghuoguoguo/langbot-skill-authoring
-  version: 0.2.0
+  version: 0.3.0
   description:
     en_US: Reviewable Skill authoring and mining workflow for LangBot.
     zh_Hans: 面向 LangBot 的可审核 Skill 沉淀与生成工作流。
@@ -57,6 +57,26 @@ spec:
         zh_Hans: 一键自动沉淀时记录的审核人标签。
       required: false
       default: auto-deposition
+    - name: retention_deprecate_score
+      type: integer
+      label:
+        en_US: Deprecate score
+        zh_Hans: 淘汰分数线
+      description:
+        en_US: Suggested lifecycle score below which a deposited Skill should be deprecated.
+        zh_Hans: 沉淀 Skill 低于该生命周期分数时建议标记为 deprecated。
+      required: false
+      default: 70
+    - name: retention_archive_score
+      type: integer
+      label:
+        en_US: Archive score
+        zh_Hans: 归档分数线
+      description:
+        en_US: Suggested lifecycle score below which a deposited Skill should be archived.
+        zh_Hans: 沉淀 Skill 低于该生命周期分数时建议归档。
+      required: false
+      default: 35
     - name: default_reviewer
       type: string
       label:

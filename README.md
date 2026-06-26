@@ -65,6 +65,46 @@ Config:
 - `auto_deposition_enabled`: master switch, default `false`.
 - `auto_deposition_policy`: `pass_only`, `allow_warn`, or `allow_blocked`.
 - `auto_deposition_reviewer`: reviewer label for automatic approval records.
+- `retention_deprecate_score`: lifecycle score below which deprecation is recommended.
+- `retention_archive_score`: lifecycle score below which archival is recommended.
+
+## Lifecycle And Retention
+
+Hermes-style learning needs forgetting, not just writing. This plugin tracks a
+lightweight lifecycle for deposited Skill candidates:
+
+```text
+candidate -> active -> deprecated -> archived
+                  \-> superseded
+```
+
+Lifecycle events can be recorded through the `skill_lifecycle_manage` tool or
+the Page API:
+
+- positive signals: `used`, `success`, `positive_feedback`, `eval_pass`
+- negative signals: `failure`, `negative_feedback`, `eval_fail`, `stale`,
+  `security_issue`, `memory_conflict`, `superseded`
+
+The retention evaluator computes a score and recommends `keep`, `deprecate`,
+`archive`, or `superseded`. Applying an action only changes this plugin's
+governance record; deleting or hiding a runtime Skill still needs LangBot's
+existing Skill management path or a future admin proxy.
+
+## LongTermMemory Coordination
+
+Use LongTermMemory and Skill Authoring as separate asset layers:
+
+- LongTermMemory L1: stable profile facts and preferences.
+- LongTermMemory L2: situational memories, decisions, events, and correction
+  history.
+- Skill Authoring: reusable procedures that need tools, sequencing, guardrails,
+  and verification.
+
+The `skill_lifecycle_manage` tool supports `memory_plan` for a candidate. It
+classifies whether the source should primarily become a Skill, an L1 profile
+update, an L2 episodic memory, or require manual review. When both apply, keep
+the executable workflow as a Skill and store only a compact source or usage
+summary in L2 memory.
 
 ## What Works In This MVP
 
@@ -72,6 +112,7 @@ Config:
 - Admin-facing Page UI for drafting and reviewing candidates.
 - LLM-callable tools:
   - `skill_auto_deposit`
+  - `skill_lifecycle_manage`
   - `skill_candidate_create`
   - `skill_candidate_risk_check`
   - `skill_candidate_export`

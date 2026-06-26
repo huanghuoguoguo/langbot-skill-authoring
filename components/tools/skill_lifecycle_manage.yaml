@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Tool
+metadata:
+  name: skill_lifecycle_manage
+  label:
+    en_US: Manage Skill Lifecycle
+    zh_Hans: 管理 Skill 生命周期
+  description:
+    en_US: Record lifecycle signals, evaluate retention, deprecate/archive/supersede candidates, and plan LongTermMemory coordination.
+    zh_Hans: 记录生命周期信号、评估保留策略、淘汰/归档/替代候选，并规划与 LongTermMemory 的协同。
+spec:
+  parameters:
+    type: object
+    properties:
+      operation:
+        type: string
+        description: record_event, evaluate, apply_action, retention, or memory_plan.
+      candidate_id:
+        type: string
+        description: Candidate ID for candidate-scoped operations.
+      event_type:
+        type: string
+        description: Lifecycle event type, such as used, success, failure, eval_pass, eval_fail, stale, security_issue, memory_conflict, superseded.
+      summary:
+        type: string
+        description: Human-readable event or action summary.
+      weight:
+        type: integer
+        description: Optional score weight override for record_event.
+      action:
+        type: string
+        description: keep, deprecate, archive, supersede, or restore.
+      superseded_by:
+        type: string
+        description: Replacement candidate or skill name when action is supersede.
+    required:
+      - operation
+  llm_prompt: Manage deposited Skill lifecycle, retention, and LongTermMemory coordination. Prefer recording signals and evaluating retention before applying destructive lifecycle actions.
+execution:
+  python:
+    path: skill_lifecycle_manage.py
+    attr: SkillLifecycleManageTool

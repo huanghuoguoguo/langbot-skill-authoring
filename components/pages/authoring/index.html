@@ -215,6 +215,8 @@
           <button class="secondary" id="approve">Approve</button>
           <button class="warn" id="reject">Reject</button>
           <button id="export">Export Package</button>
+          <button class="secondary" id="memoryPlan">Memory Plan</button>
+          <button class="secondary" id="retention">Retention</button>
         </div>
         <pre id="output" hidden></pre>
       </div>
@@ -238,7 +240,7 @@
         const node = document.createElement("div");
         node.className = "candidate" + (selected && selected.id === item.id ? " active" : "");
         node.innerHTML = `<strong>${item.title || item.draft.display_name}</strong>
-          <div class="meta"><span class="status">${item.status}</span>${item.id}</div>
+          <div class="meta"><span class="status">${item.status}</span><span class="status">${item.lifecycle_status || "candidate"}</span>${item.id}</div>
           <div class="meta ${item.risk_report.status === "pass" ? "risk-pass" : "risk-warn"}">risk: ${item.risk_report.status}</div>`;
         node.onclick = () => selectCandidate(item.id);
         root.appendChild(node);
@@ -260,6 +262,7 @@
         <p><b>When to use:</b> ${selected.draft.when_to_use}</p>
         <p><b>When not to use:</b> ${selected.draft.when_not_to_use}</p>
         <p><b>Risk:</b> ${selected.risk_report.status}</p>
+        <p><b>Lifecycle:</b> ${selected.lifecycle_status || "candidate"} · score ${selected.lifecycle_report ? selected.lifecycle_report.score : "n/a"} · ${selected.lifecycle_report ? selected.lifecycle_report.action : "keep"}</p>
       `;
     }
 
@@ -339,6 +342,8 @@
         await load();
       };
       document.getElementById("export").onclick = async () => selected && show(await api(`/candidates/${selected.id}/export`, "POST", {}));
+      document.getElementById("memoryPlan").onclick = async () => selected && show(await api(`/candidates/${selected.id}/memory-plan`, "GET"));
+      document.getElementById("retention").onclick = async () => show(await api("/retention", "GET"));
       load().catch((err) => show(err.message));
     });
   </script>

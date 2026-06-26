@@ -145,6 +145,59 @@ class ReviewRecord:
 
 
 @dataclass
+class LifecycleEvent:
+    event_type: str
+    summary: str = ""
+    weight: int = 0
+    metadata: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=utc_now)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> LifecycleEvent:
+        return cls(
+            event_type=str(data.get("event_type") or "unknown"),
+            summary=str(data.get("summary") or ""),
+            weight=int(data.get("weight") or 0),
+            metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else {},
+            created_at=str(data.get("created_at") or utc_now()),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_type": self.event_type,
+            "summary": self.summary,
+            "weight": self.weight,
+            "metadata": dict(self.metadata),
+            "created_at": self.created_at,
+        }
+
+
+@dataclass
+class LifecycleReport:
+    score: int = 100
+    action: str = "keep"
+    reasons: list[str] = field(default_factory=list)
+    evaluated_at: str = field(default_factory=utc_now)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> LifecycleReport:
+        return cls(
+            score=int(data.get("score") if data.get("score") is not None else 100),
+            action=str(data.get("action") or "keep"),
+            reasons=[str(item) for item in data.get("reasons", [])],
+            evaluated_at=str(data.get("evaluated_at") or utc_now()),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "score": self.score,
+            "action": self.action,
+            "reasons": list(self.reasons),
+            "evaluated_at": self.evaluated_at,
+        }
+
+
+@dataclass
 class SkillCandidate:
     id: str
     title: str
@@ -160,6 +213,12 @@ class SkillCandidate:
     updated_at: str = field(default_factory=utc_now)
     published_skill_name: str | None = None
     exported_package: dict[str, str] | None = None
+    lifecycle_status: str = "candidate"
+    lifecycle_events: list[LifecycleEvent] = field(default_factory=list)
+    lifecycle_report: LifecycleReport = field(default_factory=LifecycleReport)
+    superseded_by: str | None = None
+    deprecated_at: str | None = None
+    archived_at: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SkillCandidate:
@@ -178,6 +237,14 @@ class SkillCandidate:
             updated_at=str(data.get("updated_at") or utc_now()),
             published_skill_name=data.get("published_skill_name"),
             exported_package=data.get("exported_package"),
+            lifecycle_status=str(data.get("lifecycle_status") or "candidate"),
+            lifecycle_events=[
+                LifecycleEvent.from_dict(item) for item in data.get("lifecycle_events", [])
+            ],
+            lifecycle_report=LifecycleReport.from_dict(data.get("lifecycle_report", {})),
+            superseded_by=data.get("superseded_by"),
+            deprecated_at=data.get("deprecated_at"),
+            archived_at=data.get("archived_at"),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -196,5 +263,10 @@ class SkillCandidate:
             "updated_at": self.updated_at,
             "published_skill_name": self.published_skill_name,
             "exported_package": self.exported_package,
+            "lifecycle_status": self.lifecycle_status,
+            "lifecycle_events": [item.to_dict() for item in self.lifecycle_events],
+            "lifecycle_report": self.lifecycle_report.to_dict(),
+            "superseded_by": self.superseded_by,
+            "deprecated_at": self.deprecated_at,
+            "archived_at": self.archived_at,
         }
-

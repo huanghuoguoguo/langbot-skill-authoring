@@ -5,7 +5,7 @@ from typing import Any
 from langbot_plugin.api.definition.components.tool.tool import Tool
 from langbot_plugin.api.entities.builtin.provider import session as provider_session
 
-from skill_authoring.service import SkillAuthoringService
+from skill_authoring.factory import build_service
 
 
 class SkillCandidateCreateTool(Tool):
@@ -15,7 +15,7 @@ class SkillCandidateCreateTool(Tool):
         session: provider_session.Session,
         query_id: int,
     ) -> str:
-        service = SkillAuthoringService(self.plugin.candidate_store)
+        service = build_service(self.plugin)
         source_type = str(params.get("source_type") or "note")
         candidate = await service.create_candidate(
             {
@@ -34,4 +34,3 @@ class SkillCandidateCreateTool(Tool):
             f"Created skill candidate {candidate['id']} "
             f"({candidate['draft']['name']}) with risk={candidate['risk_report']['status']}."
         )
-

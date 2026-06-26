@@ -127,3 +127,104 @@ async def test_auto_deposit_stops_blocked_candidate_by_default() -> None:
     assert result["allowed"] is False
     assert result["next_action"] == "manual_review_required"
     assert result["candidate"]["status"] == "draft"
+
+
+@pytest.mark.asyncio
+async def test_lifecycle_negative_feedback_suggests_deprecation() -> None:
+    service = SkillAuthoringService(CandidateStore())
+    candidate = await service.create_candidate(
+        {
+            "title": "Noisy workflow",
+            "source_text": "Run the same debug steps for every unrelated task.",
+        }
+    )
+    await service.review(candidate["id"], decision="approve", reviewer="tester")
+    await service.export(candidate["id"])
+
+    updated = await service.record_lifecycle_event(
+        candidate["id"],
+        {
+            "event_type": "negative_feedback",
+            "summary": "User said this Skill was triggered in the wrong context.",
+        },
+    )
+
+    assert updated["lifecycle_report"]["action"] == "deprecate"
+    assert updated["lifecycle_report"]["score"] <= 70
+
+
+@pytest.mark.asyncio
+async def test_lifecycle_security_issue_suggests_archive() -> None:
+    service = SkillAuthoringService(CandidateStore())
+    candidate = await service.create_candidate(
+        {
+            "title": "Unsafe workflow",
+            "source_text": "Run verification steps.",
+        }
+    )
+    await service.review(candidate["id"], decision="approve", reviewer="tester")
+    await service.export(candidate["id"])
+
+    updated = await service.record_lifecycle_event(
+        candidate["id"],
+        {
+            "event_type": "security_issue",
+            "summary": "Post-publication review found credential leakage risk.",
+        },
+    )
+
+    assert updated["lifecycle_report"]["action"] == "archive"
+
+
+@pytest.mark.asyncio
+async def test_lifecycle_apply_supersede_records_replacement() -> None:
+    service = SkillAuthoringService(CandidateStore())
+    candidate = await service.create_candidate(
+        {"title": "Old debug workflow", "source_text": "Run old steps."}
+    )
+    await service.review(candidate["id"], decision="approve", reviewer="tester")
+    await service.export(candidate["id"])
+
+    updated = await service.apply_lifecycle_action(
+        candidate["id"],
+        {
+            "action": "supersede",
+            "superseded_by": "new-debug-workflow",
+            "reason": "New Skill covers this workflow with safer checks.",
+        },
+    )
+
+    assert updated["lifecycle_status"] == "superseded"
+    assert updated["superseded_by"] == "new-debug-workflow"
+
+
+@pytest.mark.asyncio
+async def test_memory_coordination_routes_preferences_to_l1() -> None:
+    service = SkillAuthoringService(CandidateStore())
+    candidate = await service.create_candidate(
+        {
+            "title": "User preference",
+            "source_text": "Alice prefers concise technical answers.",
+        }
+    )
+
+    plan = await service.memory_coordination_plan(candidate["id"])
+
+    assert plan["primary_asset"] == "memory_l1"
+    assert plan["memory_action"] == "update_profile"
+
+
+@pytest.mark.asyncio
+async def test_memory_coordination_routes_workflow_to_skill() -> None:
+    service = SkillAuthoringService(CandidateStore())
+    candidate = await service.create_candidate(
+        {
+            "title": "Plugin install debug workflow",
+            "source_text": "Step 1: install plugin. Step 2: verify page API. Step 3: run pytest.",
+        }
+    )
+
+    plan = await service.memory_coordination_plan(candidate["id"])
+
+    assert plan["primary_asset"] == "skill"
+    assert plan["memory_action"] == "write_l2_summary_optional"
