@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Tool
+metadata:
+  name: skill_auto_deposit
+  label:
+    en_US: Auto Deposit Skill
+    zh_Hans: 自动沉淀 Skill
+  description:
+    en_US: One-click personal assistant Skill deposition from evidence, gated by the plugin auto deposition switch.
+    zh_Hans: 面向个人助手的一键 Skill 自动沉淀，由插件自动沉淀总开关控制。
+spec:
+  parameters:
+    type: object
+    properties:
+      title:
+        type: string
+        description: Candidate title.
+      source_text:
+        type: string
+        description: Evidence, run notes, troubleshooting steps, or QA result text.
+      source_type:
+        type: string
+        description: Source type such as run, qa, troubleshooting, chat, or note.
+      source_id:
+        type: string
+        description: Source identifier.
+      name:
+        type: string
+        description: Optional target skill name.
+    required:
+      - source_text
+  llm_prompt: One-click auto-deposit a LangBot Skill candidate from verified evidence when the user enabled the auto deposition switch. Return the risk and cost disclosure to the user.
+execution:
+  python:
+    path: skill_auto_deposit.py
+    attr: SkillAutoDepositTool

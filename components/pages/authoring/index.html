@@ -150,6 +150,15 @@
       gap: 8px;
       margin-top: 12px;
     }
+    .notice {
+      border: 1px solid var(--gold);
+      background: #fff8df;
+      padding: 10px;
+      margin: 0 0 12px;
+      font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--ink);
+    }
+    .notice strong { display: block; margin-bottom: 4px; }
     .risk-warn { color: var(--accent); }
     .risk-pass { color: var(--accent-2); }
     @media (max-width: 820px) {
@@ -172,6 +181,10 @@
       <section>
         <div class="panel-head"><span>Create Candidate</span></div>
         <div class="panel-body">
+          <div class="notice" id="autoNotice">
+            <strong>Auto deposition is loading.</strong>
+            One-click deposition creates, risk-checks, reviews, and exports a package, but registration still uses LangBot's normal Skill runtime.
+          </div>
           <label for="title">Title</label>
           <input id="title" placeholder="Plugin runtime debug runbook">
           <label for="sourceType">Source type</label>
@@ -182,6 +195,7 @@
           <textarea id="sourceText" placeholder="Paste verified steps, failure symptoms, tool path, and validation evidence."></textarea>
           <div class="actions">
             <button id="create">Create</button>
+            <button class="secondary" id="autoDeposit">One-click Deposit</button>
           </div>
         </div>
       </section>
@@ -210,6 +224,7 @@
   <script>
     let selected = null;
     let candidates = [];
+    let settings = { auto_deposition: { enabled: false, policy: "allow_warn" } };
 
     function api(endpoint, method = "GET", body = null) {
       return langbot.api(endpoint, body, method);
@@ -249,11 +264,21 @@
     }
 
     async function load() {
+      settings = await api("/settings");
+      renderSettings();
       const data = await api("/candidates");
       candidates = data.candidates || [];
       if (selected) selected = candidates.find((item) => item.id === selected.id) || null;
       renderList();
       renderDetail();
+    }
+
+    function renderSettings() {
+      const notice = document.getElementById("autoNotice");
+      const auto = settings.auto_deposition || {};
+      const state = auto.enabled ? "enabled" : "disabled";
+      notice.innerHTML = `<strong>Auto deposition: ${state} · policy: ${auto.policy || "allow_warn"}</strong>
+        One-click deposition may preserve wrong workflows, private context, local paths, or excessive tool assumptions. It performs deterministic scanning and exports a package only; Skill runtime registration still requires writing the package and calling register_skill.`;
     }
 
     async function selectCandidate(id) {
@@ -283,6 +308,21 @@
           created_by: "page",
         });
         selected = data.candidate;
+        await load();
+      };
+      document.getElementById("autoDeposit").onclick = async () => {
+        const data = await api("/auto-deposit", "POST", {
+          title: document.getElementById("title").value,
+          source_type: document.getElementById("sourceType").value,
+          source_ref: {
+            type: document.getElementById("sourceType").value,
+            id: document.getElementById("sourceId").value,
+          },
+          source_text: document.getElementById("sourceText").value,
+          created_by: "page-auto",
+        });
+        selected = data.candidate;
+        show(data);
         await load();
       };
       document.getElementById("risk").onclick = async () => selected && show(await api(`/candidates/${selected.id}/risk`, "POST", {}));

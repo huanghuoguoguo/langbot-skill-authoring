@@ -50,6 +50,54 @@ class SkillAuthoringService:
         await self.store.save(candidate)
         return candidate.to_dict()
 
+    async def auto_deposit(
+        self,
+        data: dict[str, Any],
+        *,
+        enabled: bool,
+        policy: str = "allow_warn",
+        reviewer: str = "auto-deposition",
+    ) -> dict[str, Any]:
+        if not enabled:
+            raise ValueError("auto deposition is disabled by plugin config")
+
+        candidate = await self.create_candidate(data)
+        candidate_id = candidate["id"]
+        risk_status = candidate["risk_report"]["status"]
+        allowed = self._risk_allowed(risk_status, policy)
+        result: dict[str, Any] = {
+            "mode": "auto_deposition",
+            "policy": policy,
+            "allowed": allowed,
+            "candidate": candidate,
+            "risk_disclosure": self._risk_disclosure(risk_status),
+            "cost_disclosure": self._cost_disclosure(data),
+        }
+        if not allowed:
+            result["next_action"] = "manual_review_required"
+            return result
+
+        reviewed = await self.review(
+            candidate_id,
+            decision="approve",
+            reviewer=reviewer or "auto-deposition",
+            comment=(
+                "Automatically reviewed by one-click personal assistant "
+                f"deposition policy={policy}; risk={risk_status}."
+            ),
+        )
+        exported = await self.export(candidate_id)
+        result.update(
+            {
+                "candidate": exported["candidate"],
+                "review": reviewed["reviews"][-1] if reviewed.get("reviews") else None,
+                "package": exported["package"],
+                "register_skill_hint": exported["register_skill_hint"],
+                "next_action": "write_package_then_register_skill",
+            }
+        )
+        return result
+
     async def update_draft(self, candidate_id: str, draft_patch: dict[str, Any]) -> dict[str, Any]:
         candidate = await self._require(candidate_id)
         candidate.draft = SkillDraft.from_dict({**candidate.draft.to_dict(), **draft_patch})
@@ -128,3 +176,38 @@ class SkillAuthoringService:
         )
         return scan_text(text)
 
+    def _risk_allowed(self, risk_status: str, policy: str) -> bool:
+        normalized = (policy or "allow_warn").strip().lower()
+        if normalized == "allow_blocked":
+            return risk_status in {"pass", "warn", "blocked"}
+        if normalized == "allow_warn":
+            return risk_status in {"pass", "warn"}
+        return risk_status == "pass"
+
+    def _risk_disclosure(self, risk_status: str) -> dict[str, Any]:
+        return {
+            "status": risk_status,
+            "risks": [
+                "A one-off workflow can be over-generalized into a reusable Skill.",
+                "Source evidence may contain secrets, private data, local paths, or internal URLs.",
+                "A generated Skill can encourage excessive tool use if its scope is too broad.",
+                "Prompt-injection text from logs or webpages can be preserved as long-lived instructions.",
+            ],
+            "mitigations": [
+                "Deterministic risk scanning runs before export.",
+                "Generated packages keep source references and risk reports.",
+                "Runtime registration still goes through LangBot's existing register_skill path.",
+                "Users should inspect blocked or warning candidates before registering them.",
+            ],
+        }
+
+    def _cost_disclosure(self, data: dict[str, Any]) -> dict[str, Any]:
+        source_text = str(data.get("source_text") or data.get("notes") or "")
+        estimated_chars = len(source_text)
+        return {
+            "estimated_source_chars": estimated_chars,
+            "llm_calls": 0,
+            "storage_writes": "candidate, review record, exported package",
+            "runtime_changes": "none until the exported package is written and register_skill is called",
+            "human_cost": "user remains responsible for deciding whether the exported Skill should be registered",
+        }

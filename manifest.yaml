@@ -4,7 +4,7 @@ metadata:
   author: huanghuoguoguo
   name: skill-authoring
   repository: https://github.com/huanghuoguoguo/langbot-skill-authoring
-  version: 0.1.0
+  version: 0.2.0
   description:
     en_US: Reviewable Skill authoring and mining workflow for LangBot.
     zh_Hans: 面向 LangBot 的可审核 Skill 沉淀与生成工作流。
@@ -14,6 +14,49 @@ metadata:
   icon: assets/icon.svg
 spec:
   config:
+    - name: auto_deposition_enabled
+      type: boolean
+      label:
+        en_US: Enable auto deposition
+        zh_Hans: 启用自动沉淀
+      description:
+        en_US: Master switch for one-click personal assistant Skill deposition. When disabled, auto deposition tools and APIs refuse to run.
+        zh_Hans: 个人助手一键自动沉淀总开关。关闭时，自动沉淀工具和接口会拒绝执行。
+      required: false
+      default: false
+    - name: auto_deposition_policy
+      type: select
+      label:
+        en_US: Auto deposition policy
+        zh_Hans: 自动沉淀策略
+      description:
+        en_US: Decide which risk levels can be automatically reviewed and exported.
+        zh_Hans: 决定哪些风险等级可以被自动审核并导出。
+      required: false
+      default: allow_warn
+      options:
+        - name: pass_only
+          label:
+            en_US: Pass only
+            zh_Hans: 仅无风险
+        - name: allow_warn
+          label:
+            en_US: Allow warnings
+            zh_Hans: 允许警告
+        - name: allow_blocked
+          label:
+            en_US: Allow blocked
+            zh_Hans: 允许阻断项
+    - name: auto_deposition_reviewer
+      type: string
+      label:
+        en_US: Auto reviewer
+        zh_Hans: 自动审核人
+      description:
+        en_US: Reviewer label recorded for one-click auto deposition.
+        zh_Hans: 一键自动沉淀时记录的审核人标签。
+      required: false
+      default: auto-deposition
     - name: default_reviewer
       type: string
       label:
@@ -46,4 +89,3 @@ execution:
   python:
     path: main.py
     attr: SkillAuthoringPlugin
-

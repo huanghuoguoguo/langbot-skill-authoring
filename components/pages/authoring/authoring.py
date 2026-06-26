@@ -7,11 +7,27 @@ from langbot_plugin.api.definition.components.page import Page, PageRequest, Pag
 from skill_authoring.service import SkillAuthoringService
 
 
+def _config_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
+
 class SkillAuthoringPage(Page):
     def _service(self) -> SkillAuthoringService:
         config = self.plugin.get_config() if self.plugin else {}
         max_source_chars = int(config.get("max_source_chars") or 12000)
         return SkillAuthoringService(self.plugin.candidate_store, max_source_chars=max_source_chars)
+
+    def _auto_settings(self) -> dict[str, Any]:
+        config = self.plugin.get_config() if self.plugin else {}
+        return {
+            "enabled": _config_bool(config.get("auto_deposition_enabled")),
+            "policy": str(config.get("auto_deposition_policy") or "allow_warn"),
+            "reviewer": str(config.get("auto_deposition_reviewer") or "auto-deposition"),
+        }
 
     async def handle_api(self, request: PageRequest) -> PageResponse:
         try:
@@ -28,10 +44,20 @@ class SkillAuthoringPage(Page):
 
         if endpoint == "/health" and method == "GET":
             return {"ok": True, "plugin": "skill-authoring"}
+        if endpoint == "/settings" and method == "GET":
+            return {"auto_deposition": self._auto_settings()}
         if endpoint == "/candidates" and method == "GET":
             return {"candidates": await service.list_candidates()}
         if endpoint == "/candidates" and method == "POST":
             return {"candidate": await service.create_candidate(body)}
+        if endpoint == "/auto-deposit" and method == "POST":
+            settings = self._auto_settings()
+            return await service.auto_deposit(
+                body,
+                enabled=settings["enabled"],
+                policy=settings["policy"],
+                reviewer=settings["reviewer"],
+            )
 
         parts = [part for part in endpoint.split("/") if part]
         if len(parts) >= 2 and parts[0] == "candidates":
@@ -57,4 +83,3 @@ class SkillAuthoringPage(Page):
                 return await service.export(candidate_id)
 
         raise ValueError(f"unsupported endpoint: {method} {endpoint}")
-
