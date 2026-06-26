@@ -177,6 +177,7 @@ class LifecycleReport:
     score: int = 100
     action: str = "keep"
     reasons: list[str] = field(default_factory=list)
+    auto_apply_allowed: bool = False
     evaluated_at: str = field(default_factory=utc_now)
 
     @classmethod
@@ -185,6 +186,7 @@ class LifecycleReport:
             score=int(data.get("score") if data.get("score") is not None else 100),
             action=str(data.get("action") or "keep"),
             reasons=[str(item) for item in data.get("reasons", [])],
+            auto_apply_allowed=bool(data.get("auto_apply_allowed", False)),
             evaluated_at=str(data.get("evaluated_at") or utc_now()),
         )
 
@@ -193,6 +195,7 @@ class LifecycleReport:
             "score": self.score,
             "action": self.action,
             "reasons": list(self.reasons),
+            "auto_apply_allowed": self.auto_apply_allowed,
             "evaluated_at": self.evaluated_at,
         }
 
@@ -209,6 +212,9 @@ class SkillCandidate:
     risk_report: RiskReport = field(default_factory=RiskReport)
     reviews: list[ReviewRecord] = field(default_factory=list)
     created_by: str = "plugin"
+    provenance: dict[str, Any] = field(default_factory=dict)
+    protected: bool = False
+    auto_curation_eligible: bool = False
     created_at: str = field(default_factory=utc_now)
     updated_at: str = field(default_factory=utc_now)
     published_skill_name: str | None = None
@@ -233,6 +239,9 @@ class SkillCandidate:
             risk_report=RiskReport.from_dict(data.get("risk_report", {})),
             reviews=[ReviewRecord.from_dict(item) for item in data.get("reviews", [])],
             created_by=str(data.get("created_by") or "plugin"),
+            provenance=data.get("provenance") if isinstance(data.get("provenance"), dict) else {},
+            protected=bool(data.get("protected", False)),
+            auto_curation_eligible=bool(data.get("auto_curation_eligible", False)),
             created_at=str(data.get("created_at") or utc_now()),
             updated_at=str(data.get("updated_at") or utc_now()),
             published_skill_name=data.get("published_skill_name"),
@@ -259,6 +268,9 @@ class SkillCandidate:
             "risk_report": self.risk_report.to_dict(),
             "reviews": [item.to_dict() for item in self.reviews],
             "created_by": self.created_by,
+            "provenance": dict(self.provenance),
+            "protected": self.protected,
+            "auto_curation_eligible": self.auto_curation_eligible,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "published_skill_name": self.published_skill_name,

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: EventListener
+metadata:
+  name: skill_deposition_listener
+  label:
+    en_US: Skill Deposition Listener
+    zh_Hans: Skill 自动沉淀监听器
+spec:
+execution:
+  python:
+    path: skill_deposition_listener.py
+    attr: SkillDepositionListener

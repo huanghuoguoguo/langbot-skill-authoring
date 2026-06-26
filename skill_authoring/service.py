@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+from .coordination import learning_decision_for_candidate
 from .generator import build_draft, export_package
 from .models import (
     LifecycleEvent,
@@ -54,6 +55,13 @@ class SkillAuthoringService:
         )
         if isinstance(data.get("draft"), dict):
             draft = SkillDraft.from_dict({**draft.to_dict(), **data["draft"]})
+        created_by = str(data.get("created_by") or "plugin")
+        provenance = self._build_provenance(
+            data,
+            created_by=created_by,
+            source_type=source_type,
+            source_ref=source_ref,
+        )
         candidate = SkillCandidate(
             id=f"cand_{uuid.uuid4().hex[:12]}",
             title=title or draft.display_name,
@@ -61,7 +69,10 @@ class SkillAuthoringService:
             source_ref=source_ref,
             source_excerpt=source_excerpt,
             draft=draft,
-            created_by=str(data.get("created_by") or "plugin"),
+            created_by=created_by,
+            provenance=provenance,
+            protected=bool(provenance["protected"]),
+            auto_curation_eligible=bool(provenance["auto_curation_eligible"]),
         )
         candidate.lifecycle_status = "candidate"
         candidate.risk_report = self._risk_for(candidate)
@@ -79,6 +90,9 @@ class SkillAuthoringService:
         if not enabled:
             raise ValueError("auto deposition is disabled by plugin config")
 
+        data = dict(data)
+        data.setdefault("created_by", "auto-deposition")
+        data.setdefault("origin", "auto_deposition")
         candidate = await self.create_candidate(data)
         candidate_id = candidate["id"]
         risk_status = candidate["risk_report"]["status"]
@@ -219,6 +233,12 @@ class SkillAuthoringService:
         now = utc_now()
         if action not in {"keep", "deprecate", "archive", "supersede", "restore"}:
             raise ValueError("action must be keep, deprecate, archive, supersede, or restore")
+        if (
+            action in {"deprecate", "archive", "supersede"}
+            and candidate.protected
+            and not self._coerce_bool(data.get("force"), False)
+        ):
+            raise ValueError("candidate is protected; pass force=true for an explicit operator action")
         if action == "deprecate":
             candidate.lifecycle_status = "deprecated"
             candidate.deprecated_at = now
@@ -248,6 +268,7 @@ class SkillAuthoringService:
                 metadata={
                     "superseded_by": candidate.superseded_by,
                     "operator": str(data.get("operator") or "plugin"),
+                    "force": self._coerce_bool(data.get("force"), False),
                 },
             )
         )
@@ -268,6 +289,9 @@ class SkillAuthoringService:
                     "skill_name": candidate.draft.name,
                     "status": candidate.status,
                     "lifecycle_status": candidate.lifecycle_status,
+                    "protected": candidate.protected,
+                    "auto_curation_eligible": candidate.auto_curation_eligible,
+                    "provenance": candidate.provenance,
                     "report": candidate.lifecycle_report.to_dict(),
                 }
             )
@@ -283,6 +307,64 @@ class SkillAuthoringService:
         if candidate is None:
             raise ValueError(f"candidate not found: {candidate_id}")
         return candidate
+
+    def _build_provenance(
+        self,
+        data: dict[str, Any],
+        *,
+        created_by: str,
+        source_type: str,
+        source_ref: SourceRef,
+    ) -> dict[str, Any]:
+        raw = data.get("provenance") if isinstance(data.get("provenance"), dict) else {}
+        origin = str(
+            data.get("origin")
+            or raw.get("origin")
+            or self._infer_origin(created_by, source_type)
+        ).strip().lower().replace("-", "_")
+        protected_default = origin in {"imported", "runtime_registered", "hub_installed", "external"}
+        protected = self._coerce_bool(data.get("protected", raw.get("protected")), protected_default)
+        auto_curation_default = origin in {"auto_deposition", "agent_review", "background_review"}
+        auto_curation_eligible = (
+            self._coerce_bool(
+                data.get("auto_curation_eligible", raw.get("auto_curation_eligible")),
+                auto_curation_default,
+            )
+            and not protected
+        )
+        return {
+            **raw,
+            "origin": origin,
+            "created_by": created_by,
+            "source_plugin": raw.get("source_plugin") or "skill-authoring",
+            "source_type": source_type,
+            "source_id": source_ref.id,
+            "source_title": source_ref.title,
+            "protected": protected,
+            "auto_curation_eligible": auto_curation_eligible,
+        }
+
+    def _infer_origin(self, created_by: str, source_type: str) -> str:
+        normalized_creator = created_by.strip().lower().replace("-", "_")
+        normalized_source = source_type.strip().lower().replace("-", "_")
+        if normalized_creator in {"auto_tool", "auto_deposition"}:
+            return "auto_deposition"
+        if normalized_creator in {"agent_review", "background_review"}:
+            return "agent_review"
+        if normalized_source in {"import", "imported"}:
+            return "imported"
+        if normalized_source in {"runtime", "runtime_registered"}:
+            return "runtime_registered"
+        return "manual"
+
+    def _coerce_bool(self, value: Any, default: bool) -> bool:
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        return bool(value)
 
     def _risk_for(self, candidate: SkillCandidate):
         text = "\n".join(
@@ -327,6 +409,8 @@ class SkillAuthoringService:
 
         if candidate.lifecycle_status in {"deprecated", "archived", "superseded"}:
             reasons.append(f"already {candidate.lifecycle_status}")
+        if candidate.protected:
+            reasons.append("protected from automatic lifecycle actions")
 
         score = max(0, min(150, score))
         action = "keep"
@@ -340,56 +424,31 @@ class SkillAuthoringService:
             action = "deprecate"
         elif score <= self.retention_deprecate_score:
             action = "deprecate"
+        auto_apply_allowed = (
+            action in {"deprecate", "archive", "superseded"}
+            and candidate.auto_curation_eligible
+            and not candidate.protected
+        )
 
         return LifecycleReport(
             score=score,
             action=action,
             reasons=reasons,
+            auto_apply_allowed=auto_apply_allowed,
         )
 
     def _memory_coordination(self, candidate: SkillCandidate) -> dict[str, Any]:
-        text = "\n".join(
-            [
-                candidate.title,
-                candidate.source_excerpt,
-                candidate.draft.when_to_use,
-                candidate.draft.procedure,
-            ]
-        ).lower()
-        is_procedure = any(
-            marker in text
-            for marker in [
-                "step",
-                "run ",
-                "execute",
-                "verify",
-                "workflow",
-                "call ",
-                "install",
-                "debug",
-            ]
-        )
-        is_profile = any(marker in text for marker in ["prefer", "preference", "likes", "name is", "style"])
-        is_episode = any(marker in text for marker in ["today", "yesterday", "deadline", "decided", "recent"])
-
-        if is_procedure:
-            primary = "skill"
-            memory_action = "write_l2_summary_optional"
-        elif is_profile:
-            primary = "memory_l1"
-            memory_action = "update_profile"
-        elif is_episode:
-            primary = "memory_l2"
-            memory_action = "remember_episode"
-        else:
-            primary = "manual_review"
-            memory_action = "none"
+        decision = learning_decision_for_candidate(candidate)
+        primary = decision["asset_type"]
+        memory_action = decision["memory_action"]
 
         return {
             "candidate_id": candidate.id,
             "skill_name": candidate.draft.name,
             "primary_asset": primary,
             "memory_action": memory_action,
+            "learning_decision": decision,
+            "longterm_memory_suggestions": decision["longterm_memory_suggestions"],
             "guidance": [
                 "Use LongTermMemory L1 for stable user/profile preferences.",
                 "Use LongTermMemory L2 for situational facts, decisions, timelines, and correction history.",

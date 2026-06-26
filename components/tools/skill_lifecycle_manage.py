@@ -48,6 +48,7 @@ class SkillLifecycleManageTool(Tool):
                             "reason": params.get("summary") or "",
                             "superseded_by": params.get("superseded_by") or "",
                             "operator": "tool",
+                            "force": params.get("force"),
                         },
                     )
                 }

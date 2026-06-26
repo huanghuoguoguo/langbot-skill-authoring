@@ -15,7 +15,8 @@ source evidence -> candidate -> risk report -> review -> export/publish package
 For personal-assistant scenarios, the plugin also has a gated one-click mode:
 
 ```text
-source evidence -> auto candidate -> risk report -> policy gate -> auto review/export
+source evidence or completed turn
+  -> auto candidate -> risk report -> policy gate -> optional auto review/export
 ```
 
 This mode is controlled by the `auto_deposition_enabled` master switch and is
@@ -53,30 +54,74 @@ The mode still does not directly publish into the runtime registry. The result
 contains a `register_skill_hint` so the assistant can write the package under
 `/workspace/<skill-name>` and call LangBot's built-in `register_skill` tool.
 
+The plugin can also learn passively from completed LangBot turns. When both
+`auto_deposition_enabled` and `post_response_candidate_enabled` are enabled, an
+EventListener watches `NormalMessageResponded`, reads the current
+`user_message_text`, assistant `response_text`, function names, and available
+query vars, then creates a candidate only when deterministic confidence is high
+or the user explicitly says things like "沉淀一下", "记住这个流程", or "make
+this a skill".
+
+Post-response extraction is conservative:
+
+- default off, even when the plugin is installed
+- private/personal-assistant sessions only by default
+- candidate-only by default
+- optional auto-export still obeys `auto_deposition_policy`
+- no automatic runtime `register_skill`
+- no automatic LongTermMemory write
+
+Post-response config:
+
+- `post_response_candidate_enabled`: enables candidate creation after normal
+  replies, default `false`.
+- `post_response_auto_export`: approve and export low-risk candidates
+  automatically, default `false`.
+- `post_response_private_only`: restrict to private chats, default `true`.
+- `post_response_min_confidence`: deterministic threshold, default `0.72`.
+- `post_response_max_source_chars`: maximum copied turn text, default `6000`.
+- `post_response_explicit_only`: require an explicit deposition phrase, default
+  `false`.
+
 The response includes explicit disclosures:
 
 - Risks: over-generalizing one-off workflows, preserving private context,
   leaking secrets or local paths, and carrying prompt-injection text forward.
-- Cost: source size, storage writes, runtime changes, and whether LLM calls were
-  used. The current deterministic MVP uses zero LLM calls.
+- Cost: source size, plugin storage writes, optional package export writes,
+  runtime changes, and whether LLM calls were used. The current deterministic
+  MVP uses zero LLM calls.
 
 Config:
 
 - `auto_deposition_enabled`: master switch, default `false`.
 - `auto_deposition_policy`: `pass_only`, `allow_warn`, or `allow_blocked`.
 - `auto_deposition_reviewer`: reviewer label for automatic approval records.
+- `post_response_candidate_enabled`: post-response candidate extraction,
+  default `false`.
+- `post_response_auto_export`: automatic post-response review/export, default
+  `false`.
 - `retention_deprecate_score`: lifecycle score below which deprecation is recommended.
 - `retention_archive_score`: lifecycle score below which archival is recommended.
 
 ## Lifecycle And Retention
 
-Hermes-style learning needs forgetting, not just writing. This plugin tracks a
-lightweight lifecycle for deposited Skill candidates:
+Hermes-style learning needs provenance and recoverable forgetting, not just
+writing. This plugin tracks a lightweight lifecycle for deposited Skill
+candidates:
 
 ```text
 candidate -> active -> deprecated -> archived
                   \-> superseded
 ```
+
+Every candidate now carries provenance metadata:
+
+- `origin`: `manual`, `auto_deposition`, `agent_review`, `imported`,
+  `runtime_registered`, etc.
+- `protected`: protected candidates cannot be deprecated, archived, or
+  superseded unless an explicit operator action passes `force=true`.
+- `auto_curation_eligible`: only agent/auto-created candidates are eligible for
+  automatic lifecycle recommendations to be applied later.
 
 Lifecycle events can be recorded through the `skill_lifecycle_manage` tool or
 the Page API:
@@ -86,9 +131,23 @@ the Page API:
   `security_issue`, `memory_conflict`, `superseded`
 
 The retention evaluator computes a score and recommends `keep`, `deprecate`,
-`archive`, or `superseded`. Applying an action only changes this plugin's
-governance record; deleting or hiding a runtime Skill still needs LangBot's
-existing Skill management path or a future admin proxy.
+`archive`, or `superseded`. Reports include `auto_apply_allowed` so a future
+curator can distinguish "safe to apply automatically" from "human review
+needed". Applying an action only changes this plugin's governance record;
+deleting or hiding a runtime Skill still needs LangBot's existing Skill
+management path or a future admin proxy.
+
+Exported packages include:
+
+- `SKILL.md`
+- `references/source-excerpt.md`
+- `references/risk-report.json`
+- `references/provenance.json`
+- `references/learning-decision.json`
+- `references/support-files.json`
+
+This mirrors the Hermes pattern of keeping session-specific detail in support
+files instead of flattening every one-off run into a narrow Skill.
 
 ## LongTermMemory Coordination
 
@@ -105,6 +164,42 @@ classifies whether the source should primarily become a Skill, an L1 profile
 update, an L2 episodic memory, or require manual review. When both apply, keep
 the executable workflow as a Skill and store only a compact source or usage
 summary in L2 memory.
+
+The response includes a machine-readable `learning-decision/v1` object and
+optional LongTermMemory tool suggestions. This plugin does not directly call
+LongTermMemory; the agent or a future host-level workflow can apply the
+suggested `update_profile` or `remember` call after user review.
+
+When LongTermMemory is installed, its `_ltm_context` query var is preserved as
+provenance summary for post-response candidates when available. That gives the
+reviewer session/speaker context without coupling the two plugins or duplicating
+memory writes.
+
+## Hermes Parity Status
+
+Implemented in this plugin:
+
+- gated one-click deposition with risk/cost disclosure
+- LangBot-native post-response candidate extraction from `NormalMessageResponded`
+- provenance, protection, and auto-curation eligibility
+- lifecycle scoring with recoverable archive/deprecate/supersede records
+- export packages with support-file manifests
+- shared learning decision output for LongTermMemory coordination
+
+Not implemented inside this plugin:
+
+- Hermes' post-turn background fork that reviews the full conversation
+- prompt-cache-aware auxiliary model routing
+- complete tool-result trace review beyond the current event/query vars
+- direct runtime Skill archive/delete/restore
+- automatic umbrella consolidation across all installed runtime Skills
+
+Those need stable LangBot host APIs for richer run traces, cross-plugin calls,
+runtime Skill provenance, and recoverable runtime archive/restore. They are not
+required for the current LangBot-native candidate loop.
+
+The pipeline refactor follow-up plan is documented in
+[`docs/pipeline-host-integration-plan.md`](docs/pipeline-host-integration-plan.md).
 
 ## What Works In This MVP
 
@@ -126,6 +221,7 @@ summary in L2 memory.
 manifest.yaml
 main.py
 components/
+  event_listener/
   pages/authoring/
   tools/
 skill_authoring/

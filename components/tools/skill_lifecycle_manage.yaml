@@ -33,6 +33,9 @@ spec:
       superseded_by:
         type: string
         description: Replacement candidate or skill name when action is supersede.
+      force:
+        type: boolean
+        description: Explicit operator override for protected candidates. Use only after human review.
     required:
       - operation
   llm_prompt: Manage deposited Skill lifecycle, retention, and LongTermMemory coordination. Prefer recording signals and evaluating retention before applying destructive lifecycle actions.

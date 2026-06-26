@@ -7,11 +7,26 @@ from typing import Any
 
 import yaml
 
+from .coordination import learning_decision_for_candidate
 from .models import SkillCandidate, SkillDraft, SourceRef
 
 
 SLUG_RE = re.compile(r"[^a-z0-9_-]+")
 TOOL_NAMES = {"exec", "read", "write", "edit", "glob", "grep", "activate", "register_skill"}
+
+
+def support_file_manifest() -> dict[str, list[str]]:
+    return {
+        "references": [
+            "references/source-excerpt.md",
+            "references/risk-report.json",
+            "references/provenance.json",
+            "references/learning-decision.json",
+            "references/support-files.json",
+        ],
+        "templates": [],
+        "scripts": [],
+    }
 
 
 def slugify(value: str, fallback: str = "learned-skill") -> str:
@@ -104,6 +119,10 @@ def render_skill_md(candidate: SkillCandidate) -> str:
                 "source_refs": [candidate.source_ref.to_dict()],
                 "required_tools": draft.required_tools,
                 "risk_status": candidate.risk_report.status,
+                "provenance": candidate.provenance,
+                "protected": candidate.protected,
+                "auto_curation_eligible": candidate.auto_curation_eligible,
+                "support_files": support_file_manifest(),
             }
         },
     }
@@ -128,6 +147,8 @@ def render_skill_md(candidate: SkillCandidate) -> str:
 ## Source Notes
 - Candidate: `{candidate.id}`
 - Source: `{candidate.source_ref.type}:{candidate.source_ref.id}`
+- Support files: `references/source-excerpt.md`, `references/risk-report.json`,
+  `references/provenance.json`, and `references/learning-decision.json`
 """
     return f"---\n{frontmatter}\n---\n\n{textwrap.dedent(body).strip()}\n"
 
@@ -138,6 +159,27 @@ def export_package(candidate: SkillCandidate) -> dict[str, str]:
         "references/source-excerpt.md": candidate.source_excerpt.strip() + "\n",
         "references/risk-report.json": json.dumps(
             candidate.risk_report.to_dict(),
+            ensure_ascii=False,
+            indent=2,
+        ),
+        "references/provenance.json": json.dumps(
+            {
+                "created_by": candidate.created_by,
+                "provenance": candidate.provenance,
+                "protected": candidate.protected,
+                "auto_curation_eligible": candidate.auto_curation_eligible,
+                "lifecycle_status": candidate.lifecycle_status,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        "references/learning-decision.json": json.dumps(
+            learning_decision_for_candidate(candidate),
+            ensure_ascii=False,
+            indent=2,
+        ),
+        "references/support-files.json": json.dumps(
+            support_file_manifest(),
             ensure_ascii=False,
             indent=2,
         ),

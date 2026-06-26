@@ -4,7 +4,7 @@ metadata:
   author: huanghuoguoguo
   name: skill-authoring
   repository: https://github.com/huanghuoguoguo/langbot-skill-authoring
-  version: 0.3.0
+  version: 0.4.0
   description:
     en_US: Reviewable Skill authoring and mining workflow for LangBot.
     zh_Hans: 面向 LangBot 的可审核 Skill 沉淀与生成工作流。
@@ -57,6 +57,66 @@ spec:
         zh_Hans: 一键自动沉淀时记录的审核人标签。
       required: false
       default: auto-deposition
+    - name: post_response_candidate_enabled
+      type: boolean
+      label:
+        en_US: Enable post-response candidate extraction
+        zh_Hans: 启用回复后候选沉淀
+      description:
+        en_US: When the auto deposition master switch is also enabled, inspect completed normal-message turns and create reviewable Skill candidates for high-confidence reusable workflows.
+        zh_Hans: 同时开启自动沉淀总开关时，在普通消息回复完成后检查对话，只为高置信可复用流程创建可审核 Skill 候选。
+      required: false
+      default: false
+    - name: post_response_auto_export
+      type: boolean
+      label:
+        en_US: Auto export post-response candidates
+        zh_Hans: 自动导出回复后候选
+      description:
+        en_US: Automatically approve and export post-response candidates when risk policy allows. This still does not register runtime Skills.
+        zh_Hans: 风险策略允许时自动审核并导出回复后候选。仍然不会注册运行时 Skill。
+      required: false
+      default: false
+    - name: post_response_private_only
+      type: boolean
+      label:
+        en_US: Private chats only
+        zh_Hans: 仅私聊生效
+      description:
+        en_US: Limit post-response extraction to personal-assistant/private sessions unless explicitly disabled.
+        zh_Hans: 默认只在个人助手/私聊会话中进行回复后沉淀，除非明确关闭此限制。
+      required: false
+      default: true
+    - name: post_response_min_confidence
+      type: number
+      label:
+        en_US: Post-response confidence threshold
+        zh_Hans: 回复后沉淀置信阈值
+      description:
+        en_US: Minimum deterministic confidence required before creating a post-response Skill candidate.
+        zh_Hans: 创建回复后 Skill 候选所需的最低确定性置信度。
+      required: false
+      default: 0.72
+    - name: post_response_max_source_chars
+      type: integer
+      label:
+        en_US: Post-response source char limit
+        zh_Hans: 回复后来源字符上限
+      description:
+        en_US: Maximum characters copied from the completed turn into the candidate source excerpt.
+        zh_Hans: 从当前完成回合复制进候选来源摘录的最大字符数。
+      required: false
+      default: 6000
+    - name: post_response_explicit_only
+      type: boolean
+      label:
+        en_US: Require explicit deposition phrase
+        zh_Hans: 要求显式沉淀指令
+      description:
+        en_US: Only create post-response candidates when the user explicitly asks to save or deposit the workflow.
+        zh_Hans: 仅当用户明确要求保存或沉淀流程时，才创建回复后候选。
+      required: false
+      default: false
     - name: retention_deprecate_score
       type: integer
       label:
@@ -100,6 +160,10 @@ spec:
     Tool:
       fromDirs:
         - path: components/tools/
+          maxDepth: 1
+    EventListener:
+      fromDirs:
+        - path: components/event_listener/
           maxDepth: 1
     Page:
       fromDirs:
